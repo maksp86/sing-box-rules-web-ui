@@ -1,0 +1,19 @@
+@media (min-width: 512px) {
+    main > .container-lg {
+        padding-top: 60px !important;
+    }
+}
+
+@media (max-width: 512px) {
+    main > .container-lg {
+        padding-top: 80px !important;
+    }
+}
+
+ul.nav-tabs {
+    display: flex;
+}
+
+li:has(button.active) {
+    order: 1; /* the default is 0 */
+}

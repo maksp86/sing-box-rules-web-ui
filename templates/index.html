@@ -1,78 +1,200 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark" class="h-100">
 
 <head>
+    <link href="/static/css/index.css" rel="stylesheet">
+
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-icons.min.css" rel="stylesheet">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SingBox config editor</title>
+
+    {% if error %}
+    <style>
+        #error-alert {
+            animation-duration: 1s;
+            animation-delay: 5s;
+            animation-name: fade-hide;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes fade-hide {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+    {% endif %}
+
     <script>
+        var currScope = null;
+
+        const inputExamples = {
+            domain: "example.com",
+            domain_keyword: "example",
+            domain_regex: "(.*\.)?example\.com",
+            domain_suffix: ".example.com",
+            ip_cidr: "0.0.0.0/0"
+        }
+
+        function setGlobalScope(scope) {
+            currScope = scope;
+            document.querySelectorAll('input[scope="global"]').forEach(el => el.value = scope);
+            window.location.hash = scope;
+            document.getElementById("add_input").placeholder = inputExamples[scope];
+        }
+
+        function onTabSelected(event) {
+            setGlobalScope(event.target.id.replace("-tab", ""))
+        }
+
+        function clearAddInput()
+        {
+            document.getElementById("add_input").value = "";
+        }
+
         document.addEventListener("DOMContentLoaded", (event) => {
-            const tabEl = document.querySelector('button[data-bs-toggle="tab"]')
-            tabEl.addEventListener('shown.bs.tab', event => {
-                console.log(event.target)
+            const tabEl = document.querySelectorAll('button[data-bs-toggle="tab"]');
+
+            if (window.location.hash) {
+                setGlobalScope(window.location.hash.substring(1));
+                const bsTab = new bootstrap.Tab("#" + currScope + '-tab')
+                bsTab.show();
+            }
+
+            tabEl.forEach((e, i) => {
+                if (i == 0 && currScope == null)
+                    setGlobalScope(e.id.replace("-tab", ""));
+                e.addEventListener('shown.bs.tab', event => onTabSelected(event));
             })
+
+            if (window.location.search)
+                window.history.pushState({}, "", window.location.origin + window.location.pathname + (window.location.hash || ""));
+
+            document.addEventListener('keydown', e => {
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    document.getElementById("save_button").click();
+                }
+            });
+
+            {% if error %}
+            setTimeout(t => { document.getElementById("error-alert-div").remove(); }, 6000);
+            {% endif %}
         });
     </script>
 </head>
 
-<body>
-    <div class="container-md">
-        <ul class="nav nav-tabs" id="myTab" role="tablist">
-            {% for field_name in fields %}
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {{ 'active' if loop.index0 == 0 else '' }}" id="{{field_name}}-tab"
-                    data-bs-toggle="tab" data-bs-target="#{{field_name}}-tab-pane" type="button" role="tab"
-                    aria-controls="{{field_name}}-tab-pane">{{field_name.replace("_", " ").capitalize()}}</button>
-            </li>
-            {% endfor %}
-        </ul>
-        <div class="tab-content" id="tabContent">
-            {% for field_name in fields %}
-            <div class="tab-pane fade show {{ 'active' if loop.index0 == 0 else '' }}" id="{{field_name}}-tab-pane"
-                role="tabpanel" aria-labelledby="{{field_name}}-tab" tabindex="0">
-                <div class="container">
-                    {% for value in fields[field_name] %}
-                    <form method="post">
-                        <div class="row my-2 border border-black rounded p-2">
-                            <div class="col my-auto">
-                                <p class="text-start m-0">{{value}}</p>
-                            </div>
-                            <div class="col-auto">
-                                <input type="hidden" name="value" value="{{value}}">
-                                <input type="hidden" name="scope" value="{{field_name}}">
-                                <button class="btn btn-outline-danger" name="action" value="remove" type="button"
-                                    id="button-add-new">Remove</button>
-                            </div>
-                        </div>
-                    </form>
-                    {% endfor %}
+<body class="d-flex flex-column h-100">
+    <header>
+        <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">SingBox config editor</a>
+                <div>
+                    <p class="p-0 m-0 text-body-secondary">Last updated time: {{update_time}}</p>
                 </div>
             </div>
-            {% endfor %}
-            <div class="container">
-                <div class="row mt-2">
-                    <div class="col"></div>
-                    <div class="col-auto">
-                        <form method="post">
-                            <div class="input-group">
-                                <input type="hidden" name="scope" value="{{fields.keys()[0]}}">
-                                <input type="text" class="form-control" name="value" aria-describedby="button-add-new">
-                                <button class="btn btn-outline-secondary" name="action" value="add" type="submit"
-                                    id="button-add-new">Add</button>
+        </nav>
+    </header>
+    <main class="flex-shrink-0">
+        <div class="container-lg">
+            <ul class="nav nav-tabs nav-fill" role="tablist">
+                {% for field_name in fields %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {{ 'active' if loop.first else '' }}" id="{{field_name}}-tab"
+                        data-bs-toggle="tab" data-bs-target="#{{field_name}}-tab-pane" type="button" role="tab"
+                        aria-controls="{{field_name}}-tab-pane">{{field_name.replace("_", " ").capitalize()}}</button>
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="row">
+                <div class="col">
+                    <div class="tab-content">
+                        {% for field_name in fields %}
+                        <div class="tab-pane border fade show {{ 'active' if loop.first else '' }}"
+                            id="{{field_name}}-tab-pane" role="tabpanel">
+                            <div class="container">
+                                {% for value in fields[field_name] %}
+                                <form method="post">
+                                    <div class="row my-2 rounded pb-0">
+                                        <div class="col my-auto">
+                                            <p class="text-start m-0">{{value}}</p>
+                                        </div>
+                                        <div class="col-auto">
+                                            <input type="hidden" name="value" value="{{value}}">
+                                            <input type="hidden" name="scope" value="{{field_name}}">
+                                            <button class="btn btn-outline-danger" name="action" value="remove"
+                                                type="submit" id="button-add-new"><i
+                                                    class="bi bi-trash-fill"></i></button>
+                                        </div>
+                                        {% if not loop.last %}
+                                        <hr class="m-0 mt-2">
+                                        {% endif %}
+                                    </div>
+                                </form>
+                                {% else %}
+                                <div class="row my-2 rounded p-2">
+                                    <div class="col my-auto">
+                                        <p class="text-center m-0">Empty</p>
+                                    </div>
+                                </div>
+                                {% endfor %}
                             </div>
-                        </form>
-                    </div>
-                    <div class="col-auto">
-                        <form method="post">
-                            <input type="hidden" name="scope" value="{{fields.keys()[0]}}">
-                            <button name="action" value="save" type="submit" class="btn btn-primary">Save</button>
-                        </form>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
+    <footer class="footer mt-auto py-3 bg-body-tertiary">
+        <div class="container-fluid p-0">
+            <div class="row justify-content-end align-items-center mx-2 gy-3 gx-0">
+                {% if error %}
+                <div id="error-alert-div" class="col-12 col-sm px-2">
+                    <div id="error-alert"
+                        class="alert alert-{{'danger' if not error_type else error_type}} d-flex align-items-center mb-0 p-2"
+                        role="alert">
+                        {% set error_icon = 'exclamation-triangle-fill' if not error_type else
+                        {'success':'check-circle-fill'}[error_type] %}
+                        <i class="flex-shrink-0 me-2 bi-{{error_icon}}"></i>
+                        <div>{{error}}</div>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="col-9 col-sm-auto">
+                    <form method="post">
+                        <input type="hidden" scope="global" name="scope">
+                        <div class="input-group">
+                            <input id="add_input" type="text" class="form-control" name="value"
+                                aria-describedby="button-add-new" value="{{lastvalue if lastvalue else ""}}">
+                            <button type="button" class="btn btn-outline-secondary px-2" onclick="clearAddInput()">
+                                <i class="bi bi-x"></i>
+                            </button>
+                            <button class="btn btn-secondary" name="action" value="add" type="submit"
+                                id="button-add-new">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-3 col-sm-auto ps-2">
+                    <form method="post" class="d-grid">
+                        <input type="hidden" scope="global" name="scope">
+                        <button id="save_button" name="action" value="save" type="submit" class="btn btn-primary">
+                            <i class="bi bi-floppy-fill"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </footer>
     <script src="/static/js/bootstrap.bundle.min.js"></script>
 </body>
 
