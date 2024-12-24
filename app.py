@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for
-from dotenv import load_dotenv
 import validators
 import os
 import json
@@ -8,7 +7,7 @@ import datetime
 import pathlib
 
 DEFAULT_SCHEMA = {"version": 2, "rules": [
-    {"domain": ["123", "456"], "domain_keyword": ["123", "456"], "domain_regex": ["123", "456"], "domain_suffix": ["123", "456"], "ip_cidr": ["123", "456"]}]}
+    {"domain": [], "domain_keyword": [], "domain_regex": [], "domain_suffix": [], "ip_cidr": []}]}
 
 CONFIG_FILE = "ruleset.json"
 
@@ -91,19 +90,28 @@ def submit():
 @app.route("/")
 def index():
     global config
-    modify_date = int(pathlib.Path(CONFIG_FILE).stat().st_mtime)
+    if os.path.exists(CONFIG_FILE):
+        modify_date = int(pathlib.Path(CONFIG_FILE).stat().st_mtime)
+    else:
+        modify_date = 0
     return render_template('index.html',
                            fields=config["rules"][0],
-                           update_time=datetime.datetime.fromtimestamp(modify_date),
+                           update_time=datetime.datetime.fromtimestamp(
+                               modify_date),
                            lastvalue=request.args.get("lastvalue"),
                            error=request.args.get("error"),
                            error_type=request.args.get("error_type"))
 
 
-if __name__ == "__main__":
-    load_dotenv()
+@app.before_request
+def create_tables():
+    app.before_request_funcs[None].remove(create_tables)
+    global config
     if os.path.exists(CONFIG_FILE):
         config = json.load(open(CONFIG_FILE, 'r', encoding="utf-8"))
     else:
         config = dict.copy(DEFAULT_SCHEMA)
-    app.run(debug=os.getenv("MODE") == "DEV")
+
+
+if __name__ == "__main__":
+    app.run()
