@@ -6,8 +6,16 @@ import re
 import datetime
 import pathlib
 
-DEFAULT_SCHEMA = {"version": 2, "rules": [
-    {"domain": [], "domain_keyword": [], "domain_regex": [], "domain_suffix": [], "ip_cidr": []}]}
+DEFAULT_SCHEMA = {
+    "version": 2,
+    "rules": [
+        {"domain": [],
+         "domain_keyword": [],
+         "domain_regex": [],
+         "domain_suffix": [],
+         "ip_cidr": []}
+    ]
+}
 
 CONFIG_FILE = "ruleset.json"
 
@@ -16,34 +24,33 @@ config = {}
 app = Flask(__name__)
 
 
-def validate_value(value: str, scope: str) -> dict[str, str] | None:
+def validate_value(value, scope):
     error = None
-    match scope:
-        case "domain":
-            if not validators.hostname(value, skip_ipv6_addr=True,
-                                       skip_ipv4_addr=True,
-                                       may_have_port=False):
-                error = {"error": "Not a valid domain name"}
-        case "domain_keyword":
-            if not validators.hostname(value, skip_ipv6_addr=True,
-                                       skip_ipv4_addr=True,
-                                       may_have_port=False):
-                error = {"error": "Not a valid domain keyword"}
-        case "domain_regex":
-            try:
-                re.compile(value)
-            except re.error:
-                error = {"error": "Not a valid regex"}
-            pass
-        case "domain_suffix":
-            if not validators.hostname(value, skip_ipv6_addr=True,
-                                       skip_ipv4_addr=True,
-                                       may_have_port=False):
-                error = {"error": "Not a valid domain suffix"}
-        case "ip_cidr":
-            if not validators.ipv4(value) and not validators.ipv6(value):
-                error = {"error": "Not a valid ip"}
-            pass
+    if scope == "domain":
+        if not validators.hostname(value, skip_ipv6_addr=True,
+                                   skip_ipv4_addr=True,
+                                   may_have_port=False):
+            error = {"error": "Not a valid domain name"}
+    elif scope == "domain_keyword":
+        if not validators.hostname(value, skip_ipv6_addr=True,
+                                   skip_ipv4_addr=True,
+                                   may_have_port=False):
+            error = {"error": "Not a valid domain keyword"}
+    elif scope == "domain_regex":
+        try:
+            re.compile(value)
+        except re.error:
+            error = {"error": "Not a valid regex"}
+        pass
+    elif scope == "domain_suffix":
+        if not validators.hostname(value, skip_ipv6_addr=True,
+                                   skip_ipv4_addr=True,
+                                   may_have_port=False):
+            error = {"error": "Not a valid domain suffix"}
+    elif scope == "ip_cidr":
+        if not validators.ipv4(value) and not validators.ipv6(value):
+            error = {"error": "Not a valid ip"}
+        pass
     return error
 
 
