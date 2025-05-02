@@ -41,16 +41,15 @@ def validate_value(value, scope):
             re.compile(value)
         except re.error:
             error = {"error": "Not a valid regex"}
-        pass
     elif scope == "domain_suffix":
-        if not validators.hostname(value, skip_ipv6_addr=True,
-                                   skip_ipv4_addr=True,
-                                   may_have_port=False):
+        if value[0] != '.' or not validators.hostname(value[1:],
+                                                      skip_ipv6_addr=True,
+                                                      skip_ipv4_addr=True,
+                                                      may_have_port=False):
             error = {"error": "Not a valid domain suffix"}
     elif scope == "ip_cidr":
         if not validators.ipv4(value) and not validators.ipv6(value):
             error = {"error": "Not a valid ip"}
-        pass
     return error
 
 
